@@ -8,54 +8,60 @@
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-// FEW-SHOT EXAMPLES HUGO — placeholders until Hugo provides his real examples
+// Few-shot examples valides par Hugo (2026-05-16)
+// Tonalite : courte, chaleureuse, sincere, sans formules pompeuses.
+// Pas d'emoji, pas de signature (Google ajoute deja le nom du business).
 const FEW_SHOT_EXAMPLES = [
   {
     rating: 5,
-    comment: "Excellente expérience, le Dr Setbon est très professionnel et rassurant.",
-    reply: "Merci beaucoup pour votre retour chaleureux. Nous sommes ravis que votre expérience au cabinet ait été positive. Toute l'équipe met un point d'honneur à vous accompagner avec professionnalisme et bienveillance. Au plaisir de vous revoir. L'équipe du Cabinet Endodontie Louise."
+    comment: "Super expérience, équipe au top, je recommande !",
+    reply: "Merci beaucoup pour ce gentil message !"
   },
   {
     rating: 5,
-    comment: "Très bon cabinet, personnel accueillant et compétent.",
-    reply: "Un grand merci pour ce témoignage qui nous touche sincèrement. L'accueil et la compétence de notre équipe sont au cœur de nos priorités. Nous sommes heureux que cela se ressente. L'équipe du Cabinet Endodontie Louise."
+    comment: "Le Dr Anne-Sophie Deroo a été d'une douceur et d'un professionnalisme exceptionnels. Soin parfait, aucune douleur. Merci !",
+    reply: "Merci d'avoir partagé votre expérience avec nous ! Cela fait plaisir à lire."
   },
   {
     rating: 4,
-    comment: "Bon traitement mais l'attente était un peu longue.",
-    reply: "Merci pour votre retour. Nous sommes heureux que le traitement se soit bien passé. Nous prenons note de votre remarque concernant l'attente et travaillons continuellement à optimiser notre organisation. N'hésitez pas à nous contacter si besoin. L'équipe du Cabinet Endodontie Louise."
+    comment: "Excellent soin, mais salle d'attente un peu bondée à mon arrivée. Sinon parfait.",
+    reply: "Merci d'avoir pris le temps de partager votre expérience. Nous sommes contents que le soin se soit bien déroulé. Merci également pour votre remarque : on va essayer de s'améliorer !"
   }
 ];
 
 function buildSystemPrompt(rating) {
   let tonGuidance;
   if (rating >= 5) {
-    tonGuidance = 'Ton chaleureux et reconnaissant. Remercie sincèrement le patient pour son avis positif.';
+    tonGuidance = 'Ton chaleureux et reconnaissant. 1 a 2 phrases courtes suffisent.';
   } else if (rating >= 4) {
-    tonGuidance = 'Ton chaleureux avec remerciements. Montre de la gratitude pour le retour positif.';
+    tonGuidance = 'Ton chaleureux avec remerciements. Si le patient mentionne une nuance, la reconnaitre avec humilite ("on va essayer de s\'ameliorer"). 2 a 3 phrases courtes.';
   } else if (rating >= 3) {
-    tonGuidance = 'Ton nuancé, professionnel et empathique. Remercie pour le retour, montre que les remarques sont prises en compte.';
+    tonGuidance = 'Ton nuance, professionnel et empathique. Reconnaitre la remarque avec humilite, sans promesse precise irrealiste. 2 a 3 phrases courtes.';
   } else {
-    tonGuidance = 'Ton professionnel, rassurant et empathique. Ne pas être défensif. Montrer de la compréhension et proposer un dialogue privé si nécessaire.';
+    tonGuidance = 'Ton professionnel, rassurant et empathique. Ne pas etre defensif. Montrer de la comprehension. Proposer un dialogue prive si pertinent ("n\'hesitez pas a nous contacter"). 2 a 3 phrases courtes.';
   }
 
   const examples = FEW_SHOT_EXAMPLES.map(ex =>
     `[Avis ${ex.rating}★] "${ex.comment}"\n[Réponse] "${ex.reply}"`
   ).join('\n\n');
 
-  return `Tu es l'assistant de communication du Cabinet Endodontie Louise (cabinet spécialisé en endodontie à Bruxelles).
-Tu rédiges des réponses aux avis Google de patients.
+  return `Tu es l'assistant de communication du Cabinet Endodontie Louise (cabinet specialise en endodontie a Bruxelles).
+Tu rediges des reponses aux avis Google de patients.
 
-Règles STRICTES :
-- Signe au nom de "L'équipe du Cabinet Endodontie Louise"
-- Ne JAMAIS révéler d'information médicale, même si l'avis en contient (RGPD)
-- Ne JAMAIS mentionner de diagnostic, traitement ou détail clinique
-- Rester sobre, professionnel et bienveillant
-- Réponse courte (3-5 phrases max)
-- En français
+Regles STRICTES :
+- Reponse COURTE : 1 a 3 phrases maximum, comme dans les exemples ci-dessous
+- Pas de "Cher patient", "Madame/Monsieur" ou formule d'ouverture pompeuse
+- Pas d'emoji
+- Pas de signature (Google ajoute deja le nom du business automatiquement)
+- Mentionner le praticien UNIQUEMENT si le patient le mentionne dans son avis
+- Ne JAMAIS reveler d'information medicale, meme si l'avis en contient (RGPD)
+- Ne JAMAIS mentionner de diagnostic, traitement ou detail clinique
+- Ne JAMAIS mentionner le nom d'un patient
+- Pas de promesse precise irrealiste (rester sur des engagements generaux)
+- En francais
 - ${tonGuidance}
 
-Voici des exemples de réponses validées par le cabinet :
+Voici 3 exemples de reponses validees par Hugo (proprietaire du cabinet) — reproduis ce style :
 
 ${examples}`;
 }
@@ -71,13 +77,13 @@ async function generateDrafts({ rating, comment, author_name }) {
   const firstName = (author_name || '').split(' ')[0] || '';
   const systemPrompt = buildSystemPrompt(rating);
 
-  const userPrompt = `Rédige 3 variantes de réponse à cet avis Google (séparées par ---) :
+  const userPrompt = `Redige 3 variantes de reponse a cet avis Google (separees par ---) :
 
-Auteur : ${author_name || 'Anonyme'}${firstName ? ` (prénom : ${firstName})` : ''}
-Note : ${rating}/5 étoiles
+Auteur : ${author_name || 'Anonyme'}${firstName ? ` (prenom : ${firstName})` : ''}
+Note : ${rating}/5 etoiles
 Commentaire : ${comment || '(aucun commentaire)'}
 
-Écris uniquement les 3 réponses séparées par ---, sans numérotation ni guillemets ni préfixe.`;
+Ecris uniquement les 3 reponses separees par ---, sans numerotation ni guillemets ni prefixe.`;
 
   const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
