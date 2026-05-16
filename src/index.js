@@ -24,16 +24,22 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api', apiRoutes);
 
-// Start
-async function start() {
-  await initSchema();
-  startCronSync();
-  app.listen(PORT, () => {
-    console.log(`avis-google-api listening on port ${PORT}`);
-  });
-}
-
-start().catch(err => {
-  console.error('Failed to start:', err.message);
-  process.exit(1);
+// Start — server starts immediately, DB init is best-effort with retries
+app.listen(PORT, () => {
+  console.log(`avis-google-api listening on port ${PORT}`);
 });
+
+// DB init with retry (Postgres may take a few seconds to be ready)
+(async function initWithRetry() {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await initSchema();
+      startCronSync();
+      return;
+    } catch (err) {
+      console.error(`[startup] DB init attempt ${attempt}/5 failed: ${err.message}`);
+      if (attempt < 5) await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+  console.error('[startup] DB init failed after 5 attempts. Server running without DB.');
+})();
